@@ -1,0 +1,10 @@
+# STUDENT CONTEXT: PREPARATION | test and check dependencies
+# TO PREPARE / ADAPT: The runtime is included through -r; do not remove this inheritance by mistake.
+# EXPECTED CHECK: Use the development lock in your venv and in the CI test job.
+#
+# Extend the runtime dependencies for tests and static checks.
+# Never install the development tools in the delivered API image.
+-r requirements.in
+pytest>=8,<10
+httpx>=0.27,<1
+ruff>=0.9,<1

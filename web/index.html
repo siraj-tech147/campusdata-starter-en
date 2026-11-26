@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<!-- STUDENT CONTEXT: S2, page served by Nginx, not opened as file://.
+     TO BUILD: datasets, CSV file upload, upload follow-up and indicators.
+     CHECK: keyboard journey, empty/error states and requests to /api/datasets. -->
+<head>
+  <meta charset="utf-8">
+  <!-- The viewport allows a layout suited to small screens. -->
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>CampusData</title>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <main>
+    <h1>CampusData</h1>
+    <!-- Keep a stable message area: announce success, waiting and
+         errors without making the user look for the result elsewhere.
+         role=status suits notifications; plan role=alert for
+         an error that needs an immediate announcement. -->
+    <p id="message" role="status">Interface to build in session 2.</p>
+
+    <!-- TODO S2: "New dataset" form.
+         Each field has a label linked through for/id.
+         name is required; description and owner follow the shared contract.
+         The submit button is type=submit; other actions are type=button. -->
+
+    <!-- TODO S2: list of datasets (name, owner, number of measurements).
+         Show the empty state and the loading state explicitly.
+         Selecting a dataset shows its uploads and its indicators. -->
+    <ul id="datasets"></ul>
+
+    <!-- TODO S2: CSV file upload for the selected dataset.
+         <input type="file" accept=".csv,text/csv"> with an explicit label.
+         Show the upload status (pending, running, succeeded, failed)
+         and the accepted / rejected / duplicate counters once processed. -->
+
+    <!-- TODO S2: table of indicators per room, room and period filters.
+         Use <table> with <caption> and <th scope="col">; an empty table
+         must say that no measurement matches the filter.
+         Add the served version (GET /api/version) for the acceptance tests. -->
+  </main>
+  <!-- defer delays execution until the HTML document is parsed. -->
+  <script src="app.js" defer></script>
+</body>
+</html>

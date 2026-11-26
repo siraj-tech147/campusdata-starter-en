@@ -1,0 +1,63 @@
+# STUDENT CONTEXT: S4-S6 | web image available and api Service created
+# TO PREPARE / ADAPT: Use the image containing your files; the internal port stays 8080.
+# EXPECTED CHECK: A ready page is not enough: also make a business request through the proxy.
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: web
+  namespace: campusdata
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: web
+  template:
+    metadata:
+      labels:
+        app: web
+    spec:
+      automountServiceAccountToken: false
+      # Same seccomp profile as the API: default system call filtering of the runtime.
+      securityContext:
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: web
+          # Same web image as with Compose; the name api is provided by the internal Service.
+          image: campus-web:local
+          imagePullPolicy: IfNotPresent
+          # Port Nginx listens on inside the container (unprivileged).
+          ports:
+            - containerPort: 8080
+          # The nginx-unprivileged base allows running without root.
+          securityContext:
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: [ALL]
+          # GET / checks the web files, not a business operation nor PostgreSQL access.
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+---
+apiVersion: v1
+# Internal port 8080: the Ingress targets this Service, not a Pod directly.
+kind: Service
+metadata:
+  name: web
+  namespace: campusdata
+spec:
+  selector:
+    app: web
+  ports:
+    - port: 8080
+      targetPort: 8080

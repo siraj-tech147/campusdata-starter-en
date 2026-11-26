@@ -1,0 +1,20 @@
+# STUDENT CONTEXT: S2 | configuration of the Python checks of the student repository
+# TO PREPARE / ADAPT: Add your tests in api/tests; keep the paths consistent with the app package.
+# EXPECTED CHECK: Ruff checks the code; pytest checks the behaviours you have tested.
+#
+# Discovery of the tests and of the app package from the root of the student repository.
+[tool.pytest.ini_options]
+testpaths = ["api/tests"]
+pythonpath = ["api"]
+
+# Static check: does not replace running the contract tests.
+[tool.ruff]
+target-version = "py312"
+src = ["api"]
+
+# Syntax/import errors and import order; avoid global suppressions.
+[tool.ruff.lint]
+select = ["E4", "E7", "E9", "F", "I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["app"]

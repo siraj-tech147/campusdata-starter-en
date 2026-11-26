@@ -1,0 +1,113 @@
+# STUDENT CONTEXT: S4-S6 | business image built and database reachable
+# TO PREPARE / ADAPT: Locally, import the image; in the cloud, use the overlay by digest.
+# EXPECTED CHECK: Initialise the schema before readiness; observe two ready APIs and their replacement.
+#
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: api
+  namespace: campusdata
+spec:
+  # Two processes without local state; same database. No tolerance to losing the node.
+  replicas: 2
+  # Keep a few revisions; the history is not a database backup.
+  revisionHistoryLimit: 3
+  # Rollout progress deadline; exceeding it does not force an automatic rollback.
+  progressDeadlineSeconds: 120
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # Keep the replicas available during the update; maxSurge
+      # needs capacity for one extra Pod.
+      maxUnavailable: 0
+      maxSurge: 1
+  # These labels must match the template labels AND the Service selector.
+  selector:
+    matchLabels:
+      app: api
+  template:
+    metadata:
+      labels:
+        app: api
+    spec:
+      automountServiceAccountToken: false
+      # Same UID as the Dockerfile. The process does not need root rights.
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: api
+          image: campus-api:local
+          # k3d: allow the imported images. Cloud: replace with GHCR digests.
+          # Rebuilding a local tag does not automatically restart the existing Pods.
+          imagePullPolicy: IfNotPresent
+          # Port Uvicorn listens on inside the container.
+          ports:
+            - containerPort: 8000
+          # Inject the DSN at run time. Changing the Secret does not update
+          # the variables of a process already started; plan its recreation if needed.
+          env:
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: campus-secrets
+                  key: DATABASE_URL
+          securityContext:
+            allowPrivilegeEscalation: false
+            # Read-only root; /tmp stays writable through the temporary volume.
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: [ALL]
+          # Check start-up without requiring a ready database; nominal budget 30 times 2 s.
+          startupProbe:
+            httpGet:
+              path: /health/live
+              port: 8000
+            periodSeconds: 2
+            failureThreshold: 30
+          # A database outage must not trigger useless API restarts.
+          livenessProbe:
+            httpGet:
+              path: /health/live
+              port: 8000
+            periodSeconds: 10
+          # Only route business traffic when the database and table are usable.
+          # A readiness failure removes the Pod from ready traffic, without restarting it.
+          readinessProbe:
+            httpGet:
+              path: /health/ready
+              port: 8000
+            timeoutSeconds: 5
+            periodSeconds: 5
+          # 100m CPU = 0.1 CPU requested; 128Mi = memory requested for scheduling.
+          # An exceeded memory limit can terminate the container; read the events.
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 256Mi
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          # Temporary storage tied to the Pod; never put business data in it.
+          emptyDir: {}
+---
+apiVersion: v1
+# Stable address api:8000; the selector chooses the Pods to serve.
+kind: Service
+metadata:
+  name: api
+  namespace: campusdata
+spec:
+  selector:
+    app: api
+  ports:
+    - port: 8000
+      targetPort: 8000

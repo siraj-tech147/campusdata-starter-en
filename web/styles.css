@@ -1,0 +1,18 @@
+/* STUDENT CONTEXT: S2, styles of your interface.
+   TO ADAPT: layout and visual states without removing labels/focus.
+   CHECK: small screen, keyboard and readable messages on error. */
+/* Readability base; complete the layout during session 2.
+   Use classes for the loading/error/empty states; colour
+   alone must never carry status information. Add text. */
+:root { font-family: system-ui, sans-serif; color-scheme: light dark; }
+body { margin: 0; line-height: 1.5; }
+/* A limited width keeps the forms readable on a large screen.
+   The padding keeps a margin on mobile without an overflowing fixed width. */
+main { max-width: 64rem; margin: 2rem auto; padding: 0 1rem; }
+/* Native controls inherit the font for a consistent size. */
+input, textarea, select, button { font: inherit; }
+button { cursor: pointer; }
+/* The cursor does not replace the disabled attribute managed in JavaScript. */
+button:disabled { cursor: wait; }
+/* Keep a visible focus and check the contrast in light and dark modes. */
+:focus-visible { outline: 3px solid #5684ff; outline-offset: 3px; }

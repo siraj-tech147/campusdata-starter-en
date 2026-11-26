@@ -1,0 +1,18 @@
+# STUDENT CONTEXT: S4-S6 | base reused by deploy/cloud
+# TO PREPARE / ADAPT: Only add a new resource here if you build it and explain it.
+# EXPECTED CHECK: Read the final rendering; apply -k does not replace the readiness checks.
+#
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: campusdata
+# List of resources rendered together by kubectl kustomize/apply -k.
+# Listing the files in this order does not wait for the services' readiness.
+# The Secret and the SQL initialisation stay explicit steps of the guide.
+resources:
+  - 00-namespace.yaml
+  - 10-config.yaml
+  - 20-db.yaml
+  - 30-api.yaml
+  - 35-worker.yaml
+  - 40-web.yaml
+  - 50-ingress.yaml

@@ -1,0 +1,14 @@
+# STUDENT CONTEXT: S4-S6 | shared configuration, namespace created
+# TO PREPARE / ADAPT: Keep campus for name/user; secrets are created separately.
+# EXPECTED CHECK: Check the key names referenced by the database Deployment.
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: campus-config
+  namespace: campusdata
+# Non-secret settings. The password and the DSN are in campus-secrets,
+# created at run time and deliberately absent from the versioned files.
+data:
+  POSTGRES_USER: campus
+  POSTGRES_DB: campus

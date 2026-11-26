@@ -1,0 +1,11 @@
+# STUDENT CONTEXT: S4-S6 | cluster context of your lab
+# TO PREPARE / ADAPT: Keep campusdata in every file and every command.
+# EXPECTED CHECK: Check the context before apply; this file alone does not start the application.
+#
+apiVersion: v1
+# Grouping resources does not create network isolation on its own.
+# Deleting this namespace also deletes the objects of this lab: avoid doing it
+# during the persistence exercises.
+kind: Namespace
+metadata:
+  name: campusdata

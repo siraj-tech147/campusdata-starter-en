@@ -1,0 +1,86 @@
+# STUDENT CONTEXT: S3 | run from the root of the student repository
+# TO PREPARE / ADAPT: Reload .env with DATABASE_URL pointing to db; provide the init_db module built in S2.
+# EXPECTED CHECK: Initialise SQL before waiting for the API to be ready, then test upload, processing by the worker and persistence.
+#
+# S3 stack: four services (db, api, worker, web), separate from campusdata-dev.
+# Run the commands from the root of the student repository.
+name: campusdata
+services:
+  db:
+    image: postgres:17-alpine
+    # These expressions read the shell or .env; :? makes a missing value fail.
+    # .env is not automatically injected as a whole into each container.
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?required}
+      POSTGRES_DB: ${POSTGRES_DB:?required}
+    # Internal port 5432: reachable by api and worker under the name db:5432.
+    # expose documents the port without publishing it on the laptop (no ports:).
+    expose:
+      - "5432"
+    # Named volume: the PostgreSQL files survive the replacement of the container.
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      # $$ passes a dollar sign to the container shell instead of interpolating on the Compose side.
+      # pg_isready checks PostgreSQL, not the presence of your business tables.
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 5s
+      timeout: 3s
+      retries: 12
+    # Process restart policy; being unhealthy alone does not trigger it.
+    restart: unless-stopped
+  api:
+    image: campus-api:local
+    # Rebuild the image after a code change; image gives its local name.
+    build:
+      context: ./api
+      args:
+        APP_VERSION: ${APP_VERSION:-dev}
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?required}
+    # Internal port 8000 (Uvicorn): reachable by web under the name api:8000.
+    # Not published on the laptop: the browser always goes through web:8080.
+    expose:
+      - "8000"
+    # Initial wait for a healthy PostgreSQL; does not replace failure handling.
+    # After S2, run init_db before waiting for the API's full readiness.
+    depends_on:
+      db:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health/ready', timeout=4)"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+    restart: unless-stopped
+  # Ingestion worker: same image as the API, another process. It processes
+  # pending uploads in a loop; the API only records them (202 response).
+  # The app.worker module is built in S2: this service fails as long as it is missing.
+  # No port: the worker receives no request, it queries db:5432.
+  worker:
+    image: campus-api:local
+    command: ["python", "-m", "app.worker"]
+    environment:
+      DATABASE_URL: ${DATABASE_URL:?required}
+      # Interval between two searches for pending uploads, in seconds.
+      WORKER_INTERVAL_SECONDS: "5"
+    # Wait for the database; the schema must have been initialised before (init_db).
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+  web:
+    image: campus-web:local
+    build: ./web
+    # Only web is published, on the laptop loopback. Database and API stay internal.
+    # Format host:laptop_port:container_port -> http://127.0.0.1:8080 to Nginx :8080.
+    ports:
+      - "127.0.0.1:8080:8080"
+    depends_on:
+      api:
+        condition: service_healthy
+    restart: unless-stopped
+# Do not use down -v during the persistence proof: it deletes pgdata.
+volumes:
+  pgdata:

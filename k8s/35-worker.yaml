@@ -1,0 +1,75 @@
+# STUDENT CONTEXT: S4-S6 | API image built (it contains app.worker) and schema initialised
+# TO PREPARE / ADAPT: Keep --once: each Job processes the pending uploads then stops.
+# EXPECTED CHECK: A pending upload becomes succeeded in under two minutes; read the Job logs.
+#
+apiVersion: batch/v1
+# CronJob: Kubernetes creates a Job at each tick; the Job starts a Pod that stops.
+# Unlike the API Deployment, no process stays waiting between two runs.
+kind: CronJob
+metadata:
+  name: ingest
+  namespace: campusdata
+spec:
+  # Every minute. The delay between upload and processing is therefore at most ~1 min.
+  schedule: "*/1 * * * *"
+  # Do not start a second Job if the previous one is still running. The SQL
+  # SKIP LOCKED lock also protects the data if two workers coexist.
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  # A run missed by more than 60 s is not caught up: the next one is enough.
+  startingDeadlineSeconds: 60
+  jobTemplate:
+    spec:
+      # At most two new attempts if the Pod fails (for example database unavailable).
+      backoffLimit: 2
+      # Maximum duration of a run: a stuck processing does not stay forever.
+      activeDeadlineSeconds: 300
+      # Clean up finished Jobs after one hour.
+      ttlSecondsAfterFinished: 3600
+      template:
+        metadata:
+          labels:
+            app: worker
+        spec:
+          # A Job does not restart its container in place; Kubernetes creates a new Pod.
+          restartPolicy: Never
+          automountServiceAccountToken: false
+          # Same rights as the API: same image, same UID, no privilege.
+          securityContext:
+            runAsNonRoot: true
+            runAsUser: 10001
+            runAsGroup: 10001
+            seccompProfile:
+              type: RuntimeDefault
+          containers:
+            - name: worker
+              # Same image as the API: the cloud overlay also replaces this reference.
+              # No port: the worker receives no request, it queries db:5432.
+              image: campus-api:local
+              imagePullPolicy: IfNotPresent
+              command: ["python", "-m", "app.worker", "--once"]
+              env:
+                - name: DATABASE_URL
+                  valueFrom:
+                    secretKeyRef:
+                      name: campus-secrets
+                      key: DATABASE_URL
+              securityContext:
+                allowPrivilegeEscalation: false
+                readOnlyRootFilesystem: true
+                capabilities:
+                  drop: [ALL]
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 96Mi
+                limits:
+                  cpu: 500m
+                  memory: 256Mi
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: tmp
+              emptyDir: {}

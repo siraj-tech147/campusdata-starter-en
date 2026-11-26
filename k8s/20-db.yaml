@@ -1,0 +1,93 @@
+# STUDENT CONTEXT: S4-S6 | namespace, ConfigMap and Secret already present
+# TO PREPARE / ADAPT: Keep a single database replica; never replace the PVC to solve an outage.
+# EXPECTED CHECK: Wait for database ready/PVC Bound then check the witness dataset after the Pod is replaced.
+#
+apiVersion: v1
+# Storage request; the local-path provisioner creates the local volume.
+kind: PersistentVolumeClaim
+metadata:
+  name: pgdata
+  namespace: campusdata
+spec:
+  # ReadWriteOnce is about mounting on one node; it is not replication.
+  accessModes: [ReadWriteOnce]
+  # Check this class in k3d/K3s; storage depends on the lab's node.
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: db
+  namespace: campusdata
+spec:
+  # A single PostgreSQL server. Never scale this Deployment to replicate the database.
+  replicas: 1
+  strategy:
+    # Stop the old Pod before its replacement; an interruption is expected during the replacement.
+    type: Recreate
+  selector:
+    matchLabels:
+      app: db
+  template:
+    metadata:
+      labels:
+        app: db
+    spec:
+      # The application does not call the Kubernetes API: no token to mount.
+      automountServiceAccountToken: false
+      containers:
+        - name: db
+          image: postgres:17-alpine
+          # Import POSTGRES_USER and POSTGRES_DB from the ConfigMap.
+          envFrom:
+            - configMapRef:
+                name: campus-config
+          # Read only the password from the Secret; never paste it here.
+          env:
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: campus-secrets
+                  key: POSTGRES_PASSWORD
+          # Port PostgreSQL listens on inside the container.
+          ports:
+            - containerPort: 5432
+          # requests is used for scheduling; limits caps the container's resources.
+          # These values are starting points to compare with the lab's measurements.
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          # PostgreSQL availability; the API readiness also checks the business tables.
+          readinessProbe:
+            exec:
+              command: [sh, -c, 'pg_isready -U "$POSTGRES_USER" -d "$POSTGRES_DB"']
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          # Mount the same PVC at the data path used by PostgreSQL 17.
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      volumes:
+        - name: data
+          persistentVolumeClaim:
+            claimName: pgdata
+---
+apiVersion: v1
+# Internal Service named db: the API uses db:5432 in its DSN.
+kind: Service
+metadata:
+  name: db
+  namespace: campusdata
+spec:
+  selector:
+    app: db
+  ports:
+    - port: 5432
+      targetPort: 5432

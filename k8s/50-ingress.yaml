@@ -1,0 +1,25 @@
+# STUDENT CONTEXT: S4-S6 | Traefik controller and web Service available
+# TO PREPARE / ADAPT: Keep the local/tunnel path; TLS is an extension with prerequisites.
+# EXPECTED CHECK: Check the entry point 8081 locally or 8082 through the cloud tunnel.
+#
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: campus
+  namespace: campusdata
+spec:
+  # A controller must exist to apply these rules; K3s provides Traefik here.
+  ingressClassName: traefik
+  rules:
+    # No host imposed in the core path: local k3d access or cloud SSH tunnel.
+    # This manifest alone creates no domain, certificate or authentication.
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              # Forward to the web Service; Nginx then handles /api/ and /health/.
+              service:
+                name: web
+                port:
+                  number: 8080

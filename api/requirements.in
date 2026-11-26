@@ -1,0 +1,10 @@
+# STUDENT CONTEXT: PREPARATION | list of direct runtime dependencies
+# TO PREPARE / ADAPT: If you change this list, regenerate the runtime and development locks together.
+# EXPECTED CHECK: Install the resulting locks and run lint/tests again before submission.
+#
+# Allowed direct dependencies; the installed versions are in requirements.lock.
+# Edit this file then regenerate both locks together as described in preparation.md.
+fastapi>=0.115,<1
+uvicorn>=0.30,<1
+SQLAlchemy>=2.0,<2.1
+psycopg[binary]>=3.2,<4

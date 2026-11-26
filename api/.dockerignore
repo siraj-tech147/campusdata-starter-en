@@ -1,0 +1,14 @@
+# STUDENT CONTEXT: S3 | exclusions relative to the api/ context
+# TO PREPARE / ADAPT: Never remove the secret exclusions to fix a missing file.
+# EXPECTED CHECK: Check that the useful code is copied and that private data stays out of the image.
+#
+# Exclude secrets, caches and tests from the API build context.
+# Paths are relative to api/, not to the repository root.
+.venv
+__pycache__
+.pytest_cache
+.ruff_cache
+.env*
+tests
+*.pyc
+.git

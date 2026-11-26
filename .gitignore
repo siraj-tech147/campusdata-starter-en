@@ -1,0 +1,24 @@
+# STUDENT CONTEXT: ALL SESSIONS | exclusions of the student repository
+# TO PREPARE / ADAPT: Also check files already tracked: adding a pattern does not remove them from Git.
+# EXPECTED CHECK: Reread git status and the staged changes before each commit.
+#
+# Ignore secrets and generated data. A file already tracked stays tracked:
+# check git status and the staged changes before each commit.
+# .env.example stays versioned with placeholders, never real values.
+.env
+.env.*
+!.env.example
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+*.pyc
+*.pem
+*.key
+*.crt
+*.dump
+*.sql
+kubeconfig*
+rendered*.yaml
+cloud.env
+proofs/private/
